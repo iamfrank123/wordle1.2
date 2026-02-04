@@ -192,17 +192,11 @@ socket.on('opponentStatus', (status) => {
     const statusDiv = document.getElementById('duello-game-message');
     if (status.connected) {
         statusDiv.innerHTML = status.message || TranslationManager.t('msg_opponent_reconnected');
-        statusDiv.style.opacity = '1';
-        statusDiv.classList.remove('fade-out');
-
         setTimeout(() => {
-            statusDiv.classList.add('fade-out');
             if (gameStarted) statusDiv.innerHTML = TranslationManager.t('duel_msg_guess_opponent');
         }, 3000);
     } else {
         statusDiv.innerHTML = `<span style="color: #ffd43b;">⚠️ ${status.message || TranslationManager.t('msg_opponent_waiting')}</span>`;
-        statusDiv.style.opacity = '1';
-        statusDiv.classList.remove('fade-out');
     }
 });
 
@@ -268,13 +262,6 @@ socket.on('duelloGameStart', (data) => {
     generateKeyboard();
 
     duelloGameMessage.textContent = TranslationManager.t('duel_msg_guess_opponent');
-
-    // Transient Effect for Start Message
-    duelloGameMessage.classList.remove('fade-out');
-    duelloGameMessage.style.opacity = '1';
-    setTimeout(() => {
-        duelloGameMessage.classList.add('fade-out');
-    }, 1500);
 });
 
 socket.on('duelloGuessResult', (data) => {

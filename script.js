@@ -441,17 +441,11 @@ socket.on('startGame', (roomCode, players) => {
 
 socket.on('updateTurnStatus', (status) => {
     isMyTurn = status.isTurn;
-
-    // Always show status initially
-    playerTurnH3.classList.remove('fade-out');
-    playerTurnH3.classList.add('fade-in');
-    playerTurnH3.style.opacity = '1';
-
-    playerTurnH3.textContent = status.message;
+    playerTurnH3.textContent = status.message; // From Server but could be translated if we detect key
 
     if (isMyTurn) {
         gameMessageP.textContent = TranslationManager.t('msg_your_turn');
-        soundMyTurn.play();
+        soundMyTurn.play(); // suono solo sul tuo turno
         startTurnTimer();
     } else {
         clearInterval(turnTimerId);
@@ -459,15 +453,6 @@ socket.on('updateTurnStatus', (status) => {
         currentGuess = '';
         const rowBoxes = document.getElementById(`row-${currentRowIndex}`)?.querySelectorAll('.box');
         if (rowBoxes) rowBoxes.forEach(box => box.textContent = '');
-    }
-
-    // Transient Message Logic: Fade out after 1.5s (giving time to read)
-    // Only if it's NOT game over message
-    if (!status.message.includes('Game Ended') && !status.message.includes('Vinto')) {
-        setTimeout(() => {
-            playerTurnH3.classList.remove('fade-in');
-            playerTurnH3.classList.add('fade-out');
-        }, 1500);
     }
 
     updateCurrentRowVisual();

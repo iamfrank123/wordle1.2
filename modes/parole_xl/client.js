@@ -221,16 +221,6 @@ socket.on('turnUpdate', (data) => {
         indicator.style.color = "gray";
     }
 
-    // Transient Effect (Fade Out after 1.5s)
-    indicator.style.opacity = '1';
-    indicator.classList.remove('fade-out');
-    indicator.classList.add('fade-in');
-
-    setTimeout(() => {
-        indicator.classList.remove('fade-in');
-        indicator.classList.add('fade-out');
-    }, 1500);
-
     // Timer
     if (data.timeLeft !== null) {
         startTimer(data.timeLeft);

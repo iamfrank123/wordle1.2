@@ -6,7 +6,16 @@ const path = require('path');
 
 const app = express();
 const server = http.createServer(app);
-const io = socketIo(server);
+const io = socketIo(server, {
+    pingTimeout: 60000,      // Wait 60s for pong before closing connection
+    pingInterval: 25000,     // Send ping every 25s to keep connection alive
+    transports: ['websocket', 'polling'], // Try WebSocket first, fallback to polling
+    cors: {
+        origin: "*",         // Configure appropriately for production
+        methods: ["GET", "POST"]
+    },
+    allowEIO3: true          // Compatibility with older clients
+});
 
 const PORT = process.env.PORT || 3000;
 

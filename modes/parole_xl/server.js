@@ -126,6 +126,13 @@ function initParoleXL(ioMain) {
                 return;
             }
 
+            // Clean up any existing timer before starting new round
+            if (room.gameState.timer) {
+                clearInterval(room.gameState.timer);
+                room.gameState.timer = null;
+                console.log(`[PAROLE-XL] Cleaned existing timer in ${roomCode}`);
+            }
+
             room.gameState.status = 'playing';
             room.gameState.secretWord = selection.word;
             room.gameState.wordLength = selection.length;
@@ -156,7 +163,18 @@ function initParoleXL(ioMain) {
         }
 
         function notifyTurn(room) {
+            // Validate room and players exist
+            if (!room || !room.players || room.players.length === 0) {
+                console.log(`[PAROLE-XL] Cannot notify turn - invalid room state`);
+                return;
+            }
+
             const currentPlayerId = room.gameState.currentTurnPlayerId;
+            if (!currentPlayerId) {
+                console.log(`[PAROLE-XL] Cannot notify turn - no current player ID`);
+                return;
+            }
+
             const timeLeft = 45; // Seconds
 
             io.to(room.code).emit('turnUpdate', {
@@ -165,27 +183,55 @@ function initParoleXL(ioMain) {
             });
 
             if (room.config.timerEnabled) {
-                if (room.gameState.timer) clearInterval(room.gameState.timer);
+                // Clean up existing timer
+                if (room.gameState.timer) {
+                    clearInterval(room.gameState.timer);
+                    room.gameState.timer = null;
+                }
 
                 let seconds = timeLeft;
+                const roomCode = room.code;
                 room.gameState.timer = setInterval(() => {
+                    // Validate room still exists
+                    if (!rooms[roomCode]) {
+                        clearInterval(room.gameState.timer);
+                        console.log(`[PAROLE-XL] Timer stopped - room ${roomCode} no longer exists`);
+                        return;
+                    }
+
                     seconds--;
                     if (seconds <= 0) {
                         clearInterval(room.gameState.timer);
-                        // Time expired -> Pass turn or lose? 
-                        // Usually pass turn or random guess. Let's just pass turn for now.
-                        handlePassTurn(room);
+                        room.gameState.timer = null;
+                        console.log(`[PAROLE-XL] Timer expired in ${roomCode}, passing turn`);
+                        handlePassTurn(rooms[roomCode]);
                     }
                 }, 1000);
             }
         }
 
         function handlePassTurn(room) {
-            if (room.gameState.timer) clearInterval(room.gameState.timer);
+            // Validate room and its state
+            if (!room || !room.gameState) {
+                console.log(`[PAROLE-XL] Cannot pass turn - invalid room`);
+                return;
+            }
+
+            // Clean up timer
+            if (room.gameState.timer) {
+                clearInterval(room.gameState.timer);
+                room.gameState.timer = null;
+            }
 
             // Check if game is still active before passing turn
             if (room.gameState.status !== 'playing') {
                 console.log(`[PAROLE-XL] Cannot pass turn - game status is ${room.gameState.status}`);
+                return;
+            }
+
+            // Validate players exist
+            if (!room.players || room.players.length === 0) {
+                console.log(`[PAROLE-XL] Cannot pass turn - no players in room`);
                 return;
             }
 
@@ -269,7 +315,13 @@ function initParoleXL(ioMain) {
 
 
         function handleWin(room, winnerId) {
-            if (room.gameState.timer) clearInterval(room.gameState.timer);
+            // Clean up timer properly
+            if (room.gameState.timer) {
+                clearInterval(room.gameState.timer);
+                room.gameState.timer = null;
+                console.log(`[PAROLE-XL] Timer cleaned on win in room ${room.code}`);
+            }
+
             room.gameState.status = 'ended';
 
             const winner = room.players.find(p => p.id === winnerId);
@@ -281,6 +333,8 @@ function initParoleXL(ioMain) {
                 players: room.players.map(p => ({ id: p.id, nickname: p.nickname, score: p.score })),
                 scores: room.players.map(p => ({ id: p.id, score: p.score }))
             });
+
+            console.log(`[PAROLE-XL] Round ended in ${room.code}. Winner: ${winnerId}`);
         }
 
         function calculateFeedback(guess, secret) {
@@ -346,18 +400,40 @@ function initParoleXL(ioMain) {
         socket.on('disconnect', () => {
             console.log(`[PAROLE-XL] Disconnect: ${socket.id}`);
             // Handle disconnect logic (remove player, destroy room if empty)
-            // For simplicity:
             if (socket.roomId && rooms[socket.roomId]) {
                 const room = rooms[socket.roomId];
+
+                // Clean up timer if this was the current player's turn
+                if (room.gameState && room.gameState.currentTurnPlayerId === socket.id) {
+                    if (room.gameState.timer) {
+                        clearInterval(room.gameState.timer);
+                        room.gameState.timer = null;
+                        console.log(`[PAROLE-XL] Cleaned timer for disconnected player ${socket.id}`);
+                    }
+                }
+
                 room.players = room.players.filter(p => p.id !== socket.id);
                 io.to(room.code).emit('playerLeft', { playerId: socket.id });
 
                 if (room.players.length === 0) {
+                    // Clean up timer before deleting room
+                    if (room.gameState && room.gameState.timer) {
+                        clearInterval(room.gameState.timer);
+                        room.gameState.timer = null;
+                        console.log(`[PAROLE-XL] Cleaned timer before deleting room ${socket.roomId}`);
+                    }
                     delete rooms[socket.roomId];
+                    console.log(`[PAROLE-XL] Room ${socket.roomId} deleted - no players left`);
                 } else if (socket.id === room.host) {
                     // New host
                     room.host = room.players[0].id;
                     io.to(room.code).emit('newHost', { hostId: room.host });
+
+                    // If it was the disconnected player's turn, pass to next player
+                    if (room.gameState && room.gameState.status === 'playing' && room.gameState.currentTurnPlayerId === socket.id) {
+                        console.log(`[PAROLE-XL] Passing turn due to disconnect`);
+                        handlePassTurn(room);
+                    }
                 }
             }
         });

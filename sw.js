@@ -1,14 +1,26 @@
-const CACHE_NAME = 'wordle-cache-v3';
+// IMPORTANT: Increment this version number whenever you deploy updates
+// This will force all users to download the new version automatically
+const CACHE_VERSION = 4; // Changed from 3 to 4 for Socket.IO fixes
+const CACHE_NAME = `wordle-cache-v${CACHE_VERSION}`;
+
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
   './style.css',
   './script.js',
   './solo.js',
+  './client_translations.js',
+  './translation_manager.js',
   './duello.html',
   './duello.js',
   './maratona.html',
   './maratona.js',
+  './all_vs_all.html',
+  './all_vs_all.js',
+  './all_vs_all_style.css',
+  './modes/parole_xl/client.html',
+  './modes/parole_xl/client.js',
+  './modes/parole_xl/client.css',
   './immagini/splash.png',
   './audio/audio_win.mp3',
   './audio/audio_turn.mp3',

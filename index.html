@@ -258,15 +258,43 @@
             });
         }
 
-        // Service Worker Registration
+        // Enhanced Service Worker Registration with Auto-Update
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('./sw.js')
                     .then((registration) => {
-                        console.log('ServiceWorker registration successful with scope: ', registration.scope);
-                    }, (err) => {
-                        console.log('ServiceWorker registration failed: ', err);
+                        console.log('✅ ServiceWorker registered:', registration.scope);
+                        
+                        // Check for updates every 60 seconds
+                        setInterval(() => {
+                            registration.update();
+                        }, 60000);
+                        
+                        // Listen for updates
+                        registration.addEventListener('updatefound', () => {
+                            const newWorker = registration.installing;
+                            console.log('🔄 New version detected, updating...');
+                            
+                            newWorker.addEventListener('statechange', () => {
+                                if (newWorker.state === 'activated') {
+                                    // New version is ready - automatically reload after a short delay
+                                    console.log('✨ New version installed! Reloading in 2 seconds...');
+                                    setTimeout(() => {
+                                        window.location.reload();
+                                    }, 2000);
+                                }
+                            });
+                        });
+                    })
+                    .catch((err) => {
+                        console.log('❌ ServiceWorker registration failed:', err);
                     });
+                
+                // Also handle controller change (when SW takes control)
+                navigator.serviceWorker.addEventListener('controllerchange', () => {
+                    console.log('🔄 ServiceWorker controller changed, reloading...');
+                    window.location.reload();
+                });
             });
         }
     </script>
